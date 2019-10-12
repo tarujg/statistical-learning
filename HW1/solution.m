@@ -36,21 +36,24 @@ close all
     
     % Histogram plotting for both BG and FG
     % The bins for the histograms
-        %edges = [-1 -0.5:1:64.5 65];
-        edges = 0.5:1:64.5;
+        edges = 1:65;
         fontSize = 10;
         
         figure(1)
-        h_BG = histogram(X_BG,edges,'normalization', 'pdf','DisplayName','BG');
-        BG_CCD = histcounts(X_BG,edges, 'Normalization', 'probability');
+        
+        h_BG = histogram(X_BG,'BinEdges',edges,'normalization', 'pdf','DisplayName','BG');
+        BG_CCD = histcounts(X_BG,'BinEdges',edges, 'Normalization', 'probability');
+        
         title('Class Conditional Distributions for Grass', 'FontSize', 1.5*fontSize);
         xlabel('Index of the DCT component with 2nd greatest energy', 'FontSize', fontSize);
         ylabel('P(x|grass)', 'FontSize', fontSize);
         legend('Grass')
         
         figure(2)
-        h_FG = histogram(X_FG,edges,'normalization', 'pdf','DisplayName','FG');
-        FG_CCD = histcounts(X_FG,edges, 'Normalization', 'probability');
+        
+        h_FG = histogram(X_FG,'BinEdges',edges,'normalization', 'pdf','DisplayName','FG');
+        FG_CCD = histcounts(X_FG,'BinEdges',edges, 'Normalization', 'probability');
+        
         title('Class Conditional Distributions for Cheetah', 'FontSize', 1.5*fontSize);
         xlabel('Index of the DCT component with 2nd greatest energy', 'FontSize', fontSize);
         ylabel('P(x|cheetah)', 'FontSize', fontSize);
@@ -62,8 +65,8 @@ close all
     
     block_size = 8;
     
-    % Read the ZigZag pattern and convert to array
-        ZigZagPattern = table2array(readtable('Zig-Zag Pattern.txt'));
+    % Read the ZigZag pattern and convert to array and index from 1
+        ZigZagPattern = table2array(readtable('Zig-Zag Pattern.txt'))+1;
     
     % Read image and convert to double
         image = im2double(imread('cheetah.bmp'));
@@ -76,23 +79,25 @@ close all
         zeropad = zeros(h_8,w_8);
         zeropad(1:height,1:width) = image;
     
-    % Create a blank array A
+    % Create a blank array X
         X = zeros(height,width);
-        A = zeros(height,width);
+        dctZigZag = zeros(1,block_size*block_size);
     
     % Iterating through the image in 8x8 blocks through a sliding window
     for h = 1:height
         for w = 1:width
             
-            %https://www.mathworks.com/help/images/ref/dct2.html
             dctBlock = dct2(zeropad(h:h+block_size-1,w:w+block_size-1));
             
-            % Rearranging the DCT Components in ZigZag Pattern
-            % 1 is added as MATLAB indexes from 1 and not 0
-            dctZigZag = dctBlock(ZigZagPattern+1);
+            % Rearranging the DCT Components in ZigZag Patterned Vector
+            for i = 1:block_size
+                for j = 1:block_size
+                    dctZigZag(ZigZagPattern(i,j)) = dctBlock(i,j);
+                end
+            end
             
             % Computing the feature for the block
-            X(h,w) = Index2ndLargest(dctZigZag(:));
+            X(h,w) = Index2ndLargest(dctZigZag);
 
         end
     end
@@ -101,7 +106,6 @@ close all
     BG_posteriori = BG_CCD(X)*BG_prior;
     FG_posteriori = FG_CCD(X)*FG_prior;
     A = FG_posteriori > BG_posteriori;
-    
     
     figure(3)
     imagesc(A);
