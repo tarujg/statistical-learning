@@ -110,7 +110,7 @@ close all
     figure(3)
     imagesc(A);
     colormap(gray(255));
-    
+    imwrite(A, 'result.bmp');
     title('Predicted Segmentation based on Bayesian Decision Theory', 'FontSize', 1.5*fontSize);
         
     
