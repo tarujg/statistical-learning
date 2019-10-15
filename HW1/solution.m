@@ -15,8 +15,8 @@ close all
 
     % Assuming prior distribution is (# of samples of A)/total training samples
     TotalNumberOfTraining_samples = size(Train_DCT_FG,1) + size(Train_DCT_BG,1);
-    FG_prior = size(Train_DCT_FG,1)/TotalNumberOfTraining_samples;
-    BG_prior = size(Train_DCT_BG,1)/TotalNumberOfTraining_samples;
+    FG_prior = size(Train_DCT_FG,1)/TotalNumberOfTraining_samples
+    BG_prior = size(Train_DCT_BG,1)/TotalNumberOfTraining_samples
 
 %% Training data used for computing and plotting index histograms.
 %  P(x|cheetah) and P(x|grass) are the class conditionals for FG and BG.
@@ -120,7 +120,7 @@ close all
         ground_truth = im2double(imread('cheetah_mask.bmp'));
     
     % Array A has the mask and we compare where it differs from theground truth
-        error_probability = mean(xor(A, ground_truth),"all");
+        error_probability = mean(xor(A, ground_truth),"all")
 
 %% UTILITY FUNCTIONS
     % 1. Index2ndLargest
