@@ -118,10 +118,14 @@ close all
 
     % Read the ground truth image
         ground_truth = im2double(imread('cheetah_mask.bmp'));
-    
-    % Array A has the mask and we compare where it differs from theground truth
-        error_probability = mean(xor(A, ground_truth),"all")
+        
+    % Probability of error for Cheetah pixels misclassified as Grass
+        probability_error_cheetah = sum(ground_truth & ~A,'all')/sum(ground_truth,'all');
+    % Probability of error for Grass pixels misclassified as Cheetah
+        probability_error_grass = sum(~ground_truth & A,'all')/sum(~ground_truth,'all');
 
+        probability_error = (FG_prior*probability_error_cheetah) + (BG_prior*probability_error_grass)
+    
 %% UTILITY FUNCTIONS
     % 1. Index2ndLargest
     % Find Index of the second coefficient with second largest magnitude
