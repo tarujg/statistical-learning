@@ -1,9 +1,9 @@
 %% Clear workspace and close windows
 
-clc
-clear
-close all
-
+    clc
+    clear
+    close all
+    
 %% Load training dataset
 
     DCT = load('TrainingSamplesDCT_8.mat');
@@ -15,54 +15,39 @@ close all
 
     % Assuming prior distribution is (# of samples of A)/total training samples
     TotalNumberOfTraining_samples = size(Train_DCT_FG,1) + size(Train_DCT_BG,1);
-    FG_prior = size(Train_DCT_FG,1)/TotalNumberOfTraining_samples
-    BG_prior = size(Train_DCT_BG,1)/TotalNumberOfTraining_samples
-
+    FG_prior = size(Train_DCT_FG,1)/TotalNumberOfTraining_samples;
+    BG_prior = size(Train_DCT_BG,1)/TotalNumberOfTraining_samples;
+    
 %% Training data used for computing and plotting index histograms.
-%  P(x|cheetah) and P(x|grass) are the class conditionals for FG and BG.
-%  The feature is the index of DCT component with second largest magnitude.
-%  The feature is the index of the DCT component with 2nd greatest energy.
-    % Feature computation for BG sections
-        X_BG = zeros(size(Train_DCT_BG,1),1);
-        for idx = 1:size(Train_DCT_BG,1)
-            X_BG(idx) = Index2ndLargest(Train_DCT_BG(idx,:));
-        end
+
+    Mean_BG = Train_DCT_BG'*(ones(size(Train_DCT_BG,1),1))/size(Train_DCT_BG,1);
+    Mean_FG = Train_DCT_FG'*(ones(size(Train_DCT_FG,1),1))/size(Train_DCT_FG,1);
+
+    Var_BG = (Train_DCT_BG'*Train_DCT_BG)/size(Train_DCT_BG,1) - Mean_BG*Mean_BG';
+    Var_FG = (Train_DCT_FG'*Train_DCT_FG)/size(Train_DCT_FG,1) - Mean_FG*Mean_FG';
     
-    % Feature computation for FG sections
-        X_FG = zeros(size(Train_DCT_FG,1),1);
-        for idx = 1:size(Train_DCT_FG,1)
-            X_FG(idx) = Index2ndLargest(Train_DCT_FG(idx,:));
-        end
-    
-    % Histogram plotting for both BG and FG
-    % The bins for the histograms
-        edges = 1:65;
-        fontSize = 10;
+    figure(1)
+    fontSize = 10;
+
+    for i = 1:64
         
-        figure(1)
+        start_range = min(Mean_BG(i)-4*sqrt(Var_BG(i,i)),Mean_FG(i)-4*sqrt(Var_FG(i,i)));
+        end_range = max(Mean_FG(i)+4*sqrt(Var_FG(i,i)),Mean_BG(i)+4*sqrt(Var_BG(i,i)));
+        step_size = 0.01*min(sqrt(Var_FG(i,i)),sqrt(Var_BG(i,i)));
         
-        h_BG = histogram(X_BG,'BinEdges',edges,'normalization', 'pdf','DisplayName','BG');
-        BG_CCD = histcounts(X_BG,'BinEdges',edges, 'Normalization', 'probability');
+        x = start_range:step_size:end_range;
         
-        title('Class Conditional Distributions for Grass', 'FontSize', 1.5*fontSize);
-        xlabel('Index of the DCT component with 2nd greatest energy', 'FontSize', fontSize);
-        ylabel('P(x|grass)', 'FontSize', fontSize);
-        legend('Grass')
+        BG_marginal = (1/sqrt(2*pi*Var_BG(i,i)))*exp(-((x-Mean_BG(i)).^2/Var_BG(i,i)));
+        FG_marginal = (1/sqrt(2*pi*Var_FG(i,i)))*exp(-((x-Mean_FG(i)).^2/Var_FG(i,i)));
+        subplot(8,8,i);
+        plot(x,BG_marginal,'b',x,FG_marginal,'r')
         
-        figure(2)
-        
-        h_FG = histogram(X_FG,'BinEdges',edges,'normalization', 'pdf','DisplayName','FG');
-        FG_CCD = histcounts(X_FG,'BinEdges',edges, 'Normalization', 'probability');
-        
-        title('Class Conditional Distributions for Cheetah', 'FontSize', 1.5*fontSize);
-        xlabel('Index of the DCT component with 2nd greatest energy', 'FontSize', fontSize);
-        ylabel('P(x|cheetah)', 'FontSize', fontSize);
-        legend('Cheetah')
+        title(sprintf('Feature %d',i), 'FontSize', fontSize)
+    end
+    sgtitle('Class Conditional Distributions for Foreground and Background','FontSize', 1.5*fontSize)
         
 %% For each block in the image cheetah.bmp, compute the feature X and state variable Y.
-%  For Y use the minimum probability of error rule based on the distributions obtained above.
-%  Store the state in an array A and then convert to binary image using imagesc and colormap(gray(255))
-    
+
     block_size = 8;
     
     % Read the ZigZag pattern and convert to array and index from 1
@@ -81,7 +66,66 @@ close all
     
     % Create a blank array X
         X = zeros(height,width);
+        Y = zeros(height,width);
         dctZigZag = zeros(1,block_size*block_size);
+        
+    %%  Computation of metrics for the best 8 features     
+        precision_BG = inv(Var_BG);
+        precision_FG = inv(Var_FG);
+
+        best_8 = [1,13,19,26,29,32,33,40];
+        worst_8 = [3,4,5,59,60,62,63,64];
+        
+        
+        Mean_BG_8_best = Mean_BG(best_8);
+        Mean_FG_8_best = Mean_FG(best_8);
+
+        Var_BG_8_best = Var_BG(best_8,best_8);
+        Var_FG_8_best = Var_FG(best_8,best_8);
+        
+        precision_BG_8_best = inv(Var_BG_8_best);
+        precision_FG_8_best = inv(Var_FG_8_best);
+        
+        
+    %% 
+        figure(2)
+        for i = 1:8
+            idx = best_8(i);
+            start_range = min(Mean_BG(idx)-4*sqrt(Var_BG(idx,idx)),Mean_FG(idx)-4*sqrt(Var_FG(idx,idx)));
+            end_range = max(Mean_FG(idx)+4*sqrt(Var_FG(idx,idx)),Mean_BG(idx)+4*sqrt(Var_BG(idx,idx)));
+            step_size = 0.01*min(sqrt(Var_FG(idx,idx)),sqrt(Var_BG(idx,idx)));
+
+            x = start_range:step_size:end_range;
+
+            BG_marginal = (1/sqrt(2*pi*Var_BG(idx,idx)))*exp(-((x-Mean_BG(idx)).^2/Var_BG(idx,idx)));
+            FG_marginal = (1/sqrt(2*pi*Var_FG(idx,idx)))*exp(-((x-Mean_FG(idx)).^2/Var_FG(idx,idx)));
+            subplot(2,4,i);
+            plot(x,BG_marginal,'b',x,FG_marginal,'r')
+
+            title(sprintf('Feature %d',idx), 'FontSize', fontSize)
+        end
+        sgtitle('Class Conditional Distributions for Best Features','FontSize', 1.5*fontSize)
+        
+        figure(3)
+        
+        for i = 1:8
+            idx = worst_8(i);
+            start_range = min(Mean_BG(idx)-4*sqrt(Var_BG(idx,idx)),Mean_FG(idx)-4*sqrt(Var_FG(idx,idx)));
+            end_range = max(Mean_FG(idx)+4*sqrt(Var_FG(idx,idx)),Mean_BG(idx)+4*sqrt(Var_BG(idx,idx)));
+            step_size = 0.01*min(sqrt(Var_FG(idx,idx)),sqrt(Var_BG(idx,idx)));
+
+            x = start_range:step_size:end_range;
+
+            BG_marginal = (1/sqrt(2*pi*Var_BG(idx,idx)))*exp(-((x-Mean_BG(idx)).^2/Var_BG(idx,idx)));
+            FG_marginal = (1/sqrt(2*pi*Var_FG(idx,idx)))*exp(-((x-Mean_FG(idx)).^2/Var_FG(idx,idx)));
+            subplot(2,4,i);
+            plot(x,BG_marginal,'b',x,FG_marginal,'r')
+
+            title(sprintf('Feature %d',idx), 'FontSize', fontSize)
+        end
+        sgtitle('Class Conditional Distributions for Worst Features','FontSize', 1.5*fontSize)
+    
+    %% Generating the output image for the two features
     
     % Iterating through the image in 8x8 blocks through a sliding window
     for h = 1:height
@@ -96,44 +140,57 @@ close all
                 end
             end
             
+            g_grass = decision_bound(dctZigZag',Var_BG,Mean_BG,BG_prior,precision_BG);
+            g_cheetah = decision_bound(dctZigZag',Var_FG,Mean_FG,FG_prior,precision_FG);
             % Computing the feature for the block
-            X(h,w) = Index2ndLargest(dctZigZag);
-
+            X(h,w) = g_grass > g_cheetah;
+            
+            g_grass_8 = decision_bound(dctZigZag(best_8)',Var_BG_8_best,Mean_BG_8_best,BG_prior,precision_BG_8_best);
+            g_cheetah_8 = decision_bound(dctZigZag(best_8)',Var_FG_8_best,Mean_FG_8_best,FG_prior,precision_FG_8_best);
+            
+            Y(h,w) = g_grass_8 > g_cheetah_8;
         end
     end
     
-    % Computing the Posteriori distributions for generating predictions
-    BG_posteriori = BG_CCD(X)*BG_prior;
-    FG_posteriori = FG_CCD(X)*FG_prior;
-    A = FG_posteriori > BG_posteriori;
+    %% Displaying the output image for both feature sets
+    A = X(1:height,1:width);
+    B = Y(1:height,1:width);
     
-    figure(3)
+    figure(4)
     imagesc(A);
     colormap(gray(255));
     imwrite(A, 'result.bmp');
-    title('Predicted Segmentation based on Bayesian Decision Theory', 'FontSize', 1.5*fontSize);
-        
+    title('Segmentation Map using the 64-dim Gaussian', 'FontSize', 1.5*fontSize);
+    
+    figure(5)
+    imagesc(B);
+    colormap(gray(255));
+    imwrite(B, 'result_8best.bmp');
+    title('Segmentation Map using the 8-dim Gaussian (based on best features)', 'FontSize', 1.5*fontSize);
     
 %% Compare the ground truth in image cheetah_mask.bmp and compute the probability of error
 
     % Read the ground truth image
         ground_truth = im2double(imread('cheetah_mask.bmp'));
         
-    % Probability of error for Cheetah pixels misclassified as Grass
-        probability_error_cheetah = sum(ground_truth & ~A,'all')/sum(ground_truth,'all');
-    % Probability of error for Grass pixels misclassified as Cheetah
-        probability_error_grass = sum(~ground_truth & A,'all')/sum(~ground_truth,'all');
-
-        probability_error = (FG_prior*probability_error_cheetah) + (BG_prior*probability_error_grass)
-    
+        sprintf('Error for the 64-dim gaussian %f',error_computation(ground_truth,A,FG_prior,BG_prior))
+        sprintf('Error for the 8-dim gaussian %f',error_computation(ground_truth,B,FG_prior,BG_prior))       
+        
 %% UTILITY FUNCTIONS
-    % 1. Index2ndLargest
-    % Find Index of the second coefficient with second largest magnitude
-    % Much faster than sorting and finding value at second position
-
-    function [ind2] = Index2ndLargest(FeatureVector) % i is the x-largest value
-        absFeatureVector = abs(FeatureVector);
-        [~,ind1] = max(absFeatureVector);
-        absFeatureVector(ind1) = -Inf;
-        [~,ind2] = max(absFeatureVector);
+    
+    function [g_x] = decision_bound(x,Var,Mean,prior,precision) 
+    
+        w_i_0 = log(det(Var))-2*log(prior)+(Mean'*precision*Mean);
+        w_i = -2*precision*Mean;
+        g_x = x'*precision*x + w_i'*x + w_i_0;
+    end
+    
+    function [probability_error] = error_computation(ground_truth,prediction,FG_prior,BG_prior)
+        
+        % Probability of error for Cheetah pixels misclassified as Grass
+            probability_error_cheetah = sum(ground_truth & ~prediction,'all')/sum(ground_truth,'all');
+        % Probability of error for Grass pixels misclassified as Cheetah
+            probability_error_grass = sum(~ground_truth & prediction,'all')/sum(~ground_truth,'all');
+        % Computation of probability of error
+            probability_error = (FG_prior*probability_error_cheetah) + (BG_prior*probability_error_grass);
     end
