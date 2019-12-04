@@ -55,14 +55,17 @@
     
     % Read image and convert to double
         image = im2double(imread('cheetah.bmp'));
-
-    % Reading image dimensions
         [height,width] = size(image);
+        image = padarray(image,[3,3],'symmetric','pre');
+
+       
+    % Reading image dimensions
+
         [h_8,w_8] = deal(8*(ceil(height/8)+1),8*(ceil(width/8)+1));
         
     % Zeropad the image and convert to 8x8
-        zeropad = zeros(h_8,w_8);
-        zeropad(1:height,1:width) = image;
+        zeropad = ones(h_8,w_8)*0.5;
+        zeropad(1:height,1:width) = image(1:height,1:width);
     
     % Create a blank array X
         X = zeros(height,width);

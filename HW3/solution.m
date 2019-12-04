@@ -10,19 +10,15 @@
     ZigZagPattern = table2array(readtable('Zig-Zag Pattern.txt'))+1;
     
     image = im2double(imread('cheetah.bmp'));
+    [height,width] = size(image);
+    image = padarray(image,[8,8],'symmetric');
     ground_truth = im2double(imread('cheetah_mask.bmp'));
-    
-    % Reading image dimensions and zeropadding
-        [height,width] = size(image);
-        [h_8,w_8] = deal(8*(ceil(height/8)+1),8*(ceil(width/8)+1));
-        zeropad = zeros(h_8,w_8);
-        zeropad(1:height,1:width) = image;
-        dctZigZag = zeros(height,width,block_size*block_size);
+    dctZigZag = zeros(height,width,block_size*block_size);
     
     % Iterating through the image in 8x8 blocks through a sliding window
     for h = 1:height
         for w = 1:width
-            dctBlock = dct2(zeropad(h:h+block_size-1,w:w+block_size-1));
+            dctBlock = dct2(image(h+4:h+11,w+4:w+11));
             % Rearranging the DCT Components in ZigZag Patterned Vector
             for i = 1:block_size
                 for j = 1:block_size
@@ -48,19 +44,16 @@
     MLE = zeros(height,width);
     
 %% Running experiments for a particular subset and prior strategy
-    for dataset_idx = 1:4
-        if dataset_idx == 1
-            Train_FG = datasets.D1_FG;
-            Train_BG = datasets.D1_BG;
-        elseif dataset_idx == 2
-            Train_FG = datasets.D2_FG;
-            Train_BG = datasets.D2_BG;
-        elseif dataset_idx == 3
-            Train_FG = datasets.D3_FG;
-            Train_BG = datasets.D3_BG;
-        else
-            Train_FG = datasets.D4_FG;
-            Train_BG = datasets.D4_BG;
+    for idx = 1:4
+        switch idx
+            case 1
+                Train_FG = datasets.D1_FG;Train_BG = datasets.D1_BG;
+            case 2
+                Train_FG = datasets.D2_FG;Train_BG = datasets.D2_BG;
+            case 3
+                Train_FG = datasets.D3_FG;Train_BG = datasets.D3_BG;
+            case 4
+                Train_FG = datasets.D4_FG;Train_BG = datasets.D4_BG;
         end
         
         N_BG = size(Train_BG,1);
@@ -123,23 +116,23 @@
                     end
                 end
 
-                %subplot(1,3,1)
-                %imagesc(Bayesian);
-                %colormap(gray(255));
-                imwrite(Bayesian(1:height,1:width), strcat('./results/',num2str(dataset_idx),'/bayes_',num2str(strat_idx),'_',num2str(alpha_idx),'.bmp'));
-                %title('Bayesian')
+                subplot(1,3,1)
+                imagesc(Bayesian);
+                colormap(gray(255));
+                imwrite(Bayesian(1:height,1:width), strcat('./results/',num2str(idx),'/bayes_',num2str(strat_idx),'_',num2str(alpha_idx),'.bmp'));
+                title('Bayesian')
 
-                %subplot(1,3,2)
-                %imagesc(MLE);
-                %colormap(gray(255));
-                imwrite(MLE(1:height,1:width), strcat('./results/',num2str(dataset_idx),'/mle_',num2str(strat_idx),'_',num2str(alpha_idx),'.bmp'));
-                %title('MLE')
+                subplot(1,3,2)
+                imagesc(MLE);
+                colormap(gray(255));
+                imwrite(MLE(1:height,1:width), strcat('./results/',num2str(idx),'/mle_',num2str(strat_idx),'_',num2str(alpha_idx),'.bmp'));
+                title('MLE')
 
-                %subplot(1,3,3)
-                %imagesc(MAP);
-                %colormap(gray(255));
-                imwrite(MAP(1:height,1:width), strcat('./results/',num2str(dataset_idx),'/map_',num2str(strat_idx),'_',num2str(alpha_idx),'.bmp'));
-                %title('MAP')
+                subplot(1,3,3)
+                imagesc(MAP);
+                colormap(gray(255));
+                imwrite(MAP(1:height,1:width), strcat('./results/',num2str(idx),'/map_',num2str(strat_idx),'_',num2str(alpha_idx),'.bmp'));
+                title('MAP')
 
                 % Compare the ground truth in image cheetah_mask.bmp and compute the probability of error
                 % Read the ground truth image
@@ -151,14 +144,15 @@
             
             x = 1:size(alpha,2);
 
-            figure(4*dataset_idx+strat_idx);
+            figure(strat_idx+2*(idx-1));
             semilogx(alpha(x), Bayes_error(x), '--r'), hold on
             semilogx(alpha(x), MAP_error(x), '-xg'), hold on
             semilogx(alpha(x), MLE_error(x), '-ob')
-            title(strcat('Dataset ',num2str(dataset_idx),'with Strategy ',num2str(strat_idx)))
+            title(strcat('Dataset ',num2str(idx),' with Strategy ',num2str(strat_idx)))
             xlabel('\alpha')
             ylabel('Probability of Error')
             legend('Bayesian','MAP','ML')
+            saveas(gcf,strcat('./results/Strat_',num2str(strat_idx),'_Data_',num2str(idx),'.pdf'));
         end
     end
     
